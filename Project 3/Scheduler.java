@@ -35,7 +35,7 @@ public class Scheduler {
 
 	// 	if (prevDetails != null) {
 	// 		for (int i = 0; i < (int)prevDetails[1]; i++) {
-	// 			bldr.append(" ");
+	// 			bldr.append("-");
 	// 		}
 	// 	}
 
@@ -144,15 +144,15 @@ public class Scheduler {
             bldr.append(j.name).append("\t|");
 
             for (int i = 0; i < prevDuration; i++) {
-                bldr.append(" ");
+                bldr.append("-");
             }
 
-            for (int i = 0; i < j.duration; i++) {
+            for (int i = 0; i < j.timeRequired; i++) {
                 bldr.append(j.name);
             }
 
             bldr.append("\n");
-			prevDuration += j.duration;
+			prevDuration += j.timeRequired;
 
 			counter++;
         }
@@ -190,7 +190,8 @@ public class Scheduler {
 			}
 		}
 
-		return counter;
+		// System.out.println("out of loop and returning counter = " + counter);
+		return -1;
 	}
 
 	public void printQueue(Queue<Job> queue) {
@@ -252,7 +253,7 @@ public class Scheduler {
 				// System.out.println("running " + runningJob.toString() + "; currentTime: " + currentTime);
 
 				runningJob.executionTime += timeQuantum;
-				runningJob.duration -= timeQuantum;
+				// runningJob.timeRequired -= timeQuantum;
 
 				// build output
 				int runningBldrIdx = jobToBldrIdx.get(runningJob);
@@ -267,7 +268,7 @@ public class Scheduler {
 				}
 
 				for (int i = 0; i < spaces; i++) {
-					builders[runningBldrIdx].append(" ");
+					builders[runningBldrIdx].append("-");
 				}
 
 				builders[runningBldrIdx].append(runningJob.name);
@@ -296,8 +297,8 @@ public class Scheduler {
 			// add job to ready queue again if the job is not done yet
 			if (runningJob != null) {
 				previousJob = runningJob;
-				if (runningJob.duration > 0) {
-					// System.out.println("runningJob.duration > 0");
+				if (runningJob.timeRequired - runningJob.executionTime > 0) {
+					// System.out.println("runningJob.timeRequired > 0");
 					readyQueue.add(runningJob);
 				}
 			}
@@ -348,10 +349,10 @@ public class Scheduler {
 					builders[pickedJob] = new StringBuilder();
 					builders[pickedJob].append(currentJob.name).append("\t|");
 				}
-				builders[pickedJob].append(" ");
+				builders[pickedJob].append("-");
 			}
 
-			for (int i = 0; i < currentJob.duration; i++) {
+			for (int i = 0; i < currentJob.timeRequired; i++) {
 				if (builders[pickedJob] == null) {
 					builders[pickedJob] = new StringBuilder();
 					builders[pickedJob].append(currentJob.name).append("\t|");
@@ -360,7 +361,7 @@ public class Scheduler {
 			}
 
 			builders[pickedJob].append("\n");
-			currentTime += currentJob.duration;
+			currentTime += currentJob.timeRequired;
 
 			index++;
 		}
@@ -372,11 +373,129 @@ public class Scheduler {
 		System.out.println(bldr);
 	}
 
+	private int pickJobForSRT(ArrayList<Job> jobs) {
+
+		int minIdx = Integer.MAX_VALUE;
+		int minDifference = Integer.MAX_VALUE;
+		
+		int counter = 0;
+		int currDifference = -1;
+
+		for (Job job : jobs) {
+			currDifference = job.timeRequired - job.executionTime;
+			// System.out.print("job = " + job.toString());
+			// System.out.print(" | currDifference = " + currDifference);
+			if (currDifference < minDifference) {
+				minDifference = currDifference;
+				minIdx = counter;
+				// System.out.print(" | minIdx = " + minIdx + " | minDifference = " + minDifference);
+			}
+			// System.out.println();
+			counter++;
+		}
+		
+		
+		// System.out.println("returning minIdx = " + minIdx);
+		return minIdx;
+	}
+
 	public void SRT(ArrayList<Job> jobs) {
 
 		int currentTime = 0;
-		int minIdx = pickJob(jobs, null, currentTime, Scheduler.SRT);
-		Job job = jobs.get(minIdx);
+		int jobsCounter = 0;
+
+		StringBuilder bldr = new StringBuilder();
+		StringBuilder[] builders = new StringBuilder[jobs.size()];
+		HashMap<Job, Integer> jobsToIdxMap = new HashMap<>();
+		ArrayList<Job> arrivedAndReadyJobs = new ArrayList<>();
+		// Queue<Job> readyQueue = new LinkedList<>();
+
+		int lastIdx = -1;
+		Job lastJob = null;
+		int nextJobIdx = -1;
+		Job nextJob = null;
+
+		while (jobsCounter < jobs.size() || !arrivedAndReadyJobs.isEmpty()) {
+			// nextJobIdx = pickJob(jobs, null, currentTime, Scheduler.SRT);
+			
+			// System.out.println("----------");
+			nextJobIdx = checkForArrivals(jobs, currentTime, lastIdx);
+			
+			if (nextJobIdx != -1) {
+				// System.out.print("nextJobIdx = " + nextJobIdx + " | currentTime = " + currentTime);
+				nextJob = jobs.get(nextJobIdx);
+				lastIdx = nextJobIdx;
+				// System.out.println(" | nextJob = " + nextJob.toString());
+			}
+
+			if (nextJob != null && !jobsToIdxMap.containsKey(nextJob)) {
+				arrivedAndReadyJobs.add(nextJob);
+				jobsToIdxMap.put(nextJob, jobsCounter);
+				jobsCounter++;
+			}
+			
+			// print(arrivedAndReadyJobs, 0, arrivedAndReadyJobs.size());
+			Job currentJob = arrivedAndReadyJobs.remove(pickJobForSRT(arrivedAndReadyJobs));
+			currentJob.executionTime++;
+
+			int runningBldrIdx = jobsToIdxMap.get(currentJob);
+				if (builders[runningBldrIdx] == null) {
+					builders[runningBldrIdx] = new StringBuilder();
+					builders[runningBldrIdx].append(currentJob.name).append("\t|");
+				}
+
+				int spaces = Math.abs(currentTime - (builders[runningBldrIdx].length() - 3));
+				if (lastJob != null && currentJob.name == currentJob.name) {
+					spaces = 0;
+				}
+
+				for (int i = 0; i < spaces; i++) {
+					builders[runningBldrIdx].append("-");
+				}
+
+				builders[runningBldrIdx].append(currentJob.name);
+
+			if (currentJob.timeRequired - currentJob.executionTime > 0) {
+				arrivedAndReadyJobs.add(currentJob);
+			}
+			
+			// System.out.println("jobsCounter = " + jobsCounter);
+			// System.out.println("----------");
+			currentTime++;
+		}
+
+		bldr.append("SRT").append("\n");
+		for (int i = 0; i < builders.length; i++) {
+			bldr.append(builders[i].toString()).append("\n");
+		}
+		
+		System.out.println(bldr.toString());
+
+		// while (jobsCounter < jobs.size() || !readyQueue.isEmpty()) {
+		// 	int minIdx = pickJob(jobs, null, currentTime, Scheduler.SRT);
+		// 	Job job = jobs.get(minIdx);
+
+		// 	System.out.println(job.toString());
+
+		// 	if (!jobsToIdxMap.containsKey(job)) {
+		// 		jobsToIdxMap.put(job, jobsCounter);
+		// 		jobsCounter++;
+		// 	}
+
+		// 	System.out.println("jobsCounter = " + jobsCounter);
+
+		// 	// run job
+		// 	job.executionTime += 1;
+		// 	// job.timeRequired -= 1;
+
+		// 	try {
+		// 		Thread.sleep(150);
+		// 	} catch (Exception e) {
+		// 		e.printStackTrace();
+		// 	}
+
+		// 	currentTime++;
+		// }
 
 	}
 
@@ -391,7 +510,7 @@ public class Scheduler {
 
 		// get wait times
 		// for (int i = 1; i < jobs.size(); i++) {
-		// 	jobs.get(i).waitTime += Math.abs(jobs.get(i-1).duration - jobs.get(i).arrivalTime);
+		// 	jobs.get(i).waitTime += Math.abs(jobs.get(i-1).timeRequired - jobs.get(i).arrivalTime);
 		// }
 
 		int index = 0;
@@ -406,10 +525,10 @@ public class Scheduler {
 					builders[pickedJob] = new StringBuilder();
 					builders[pickedJob].append(currentJob.name).append("\t|");
 				}
-				builders[pickedJob].append(" ");
+				builders[pickedJob].append("-");
 			}
 
-			for (int i = 0; i < currentJob.duration; i++) {
+			for (int i = 0; i < currentJob.timeRequired; i++) {
 				if (builders[pickedJob] == null) {
 					builders[pickedJob] = new StringBuilder();
 					builders[pickedJob].append(currentJob.name).append("\t|");
@@ -418,7 +537,7 @@ public class Scheduler {
 			}
 
 			builders[pickedJob].append("\n");
-			currentTime += currentJob.duration;
+			currentTime += currentJob.timeRequired;
 
 			index++;
 		}
@@ -488,7 +607,7 @@ public class Scheduler {
 			} else if (!level2Queue.isEmpty()) {
 				// Job job = runFBFor(timeQuantum, level2Queue);
 				// System.out.println("ran level 2: " + job.toString());
-				// if (job.duration > 0) {
+				// if (job.timeRequired > 0) {
 				// 	level3Queue.add(job);
 				// }
 
@@ -498,7 +617,7 @@ public class Scheduler {
 			} else if (!level3Queue.isEmpty()) {
 				// Job job = runFBFor(timeQuantum, level3Queue);
 				// System.out.println("ran level 3: " + job.toString());
-				// if (job.duration > 0) {
+				// if (job.timeRequired > 0) {
 				// 	level3Queue.add(job);
 				// }
 
@@ -509,7 +628,7 @@ public class Scheduler {
 			Job job = workingQueue.remove();
 
 			job.executionTime += timeQuantum;
-			job.duration -= timeQuantum;
+			// job.timeRequired -= timeQuantum;
 
 			// System.out.print("hashmap: ");
 			// printHashMap(jobsToIdxMap);
@@ -528,7 +647,7 @@ public class Scheduler {
 			}
 
 			for (int i = 0; i < spaces; i++) {
-				builders[runningBldrIdx].append(" ");
+				builders[runningBldrIdx].append("-");
 			}
 
 			for (int i = 0; i < timeQuantum; i++) {
@@ -553,7 +672,7 @@ public class Scheduler {
 				}
 			}
 
-			if (job != null && job.duration > 0) {
+			if (job != null && (job.timeRequired - job.executionTime > 0)) {
 				previousJob = job;
 				if (runningQueue == LEVEL_1) {
 					if (!job.equals(arrivalJob)) {
@@ -585,8 +704,8 @@ public class Scheduler {
 			// // add job to ready queue again if the job is not done yet
 			// if (job != null) {
 			// 	previousJob = job;
-			// 	if (job.duration > 0) {
-			// 		// System.out.println("runningJob.duration > 0");
+			// 	if (job.timeRequired > 0) {
+			// 		// System.out.println("runningJob.timeRequired > 0");
 			// 		level2Queue.add(job);
 			// 	}
 			// }
@@ -627,7 +746,7 @@ public class Scheduler {
 		}
 
 		job.executionTime += timeQuantum;
-		job.duration -= timeQuantum;
+		// job.timeRequired -= timeQuantum;
 
 		return job;
 	}
@@ -636,7 +755,7 @@ public class Scheduler {
 		ArrayList<Job> clone = new ArrayList<>();
 
 		for (Job job : arrToClone) {
-			clone.add(new Job(job.name, job.arrivalTime, job.duration));
+			clone.add(new Job(job.name, job.arrivalTime, job.timeRequired));
 		}
 
 		return clone;
@@ -694,18 +813,27 @@ public class Scheduler {
 
 				for (Job job : jobs) {
 
+					System.out.println("-----");
+
+					System.out.println(job.toString());
+
 					if (job.arrivalTime > currentTime) {
-						continue;
+						System.out.println("returning minIdx = " + minIdx + " from if statement");
+						return counter - 1;
 					}
 
-					if (currMin > job.duration && !alreadyPicked.contains(job)) {
-						currMin = job.duration;
+					if (currMin > job.timeRequired && !alreadyPicked.contains(job)) {
+						System.out.print("in currMin > job.timeRequired if statement");
+						currMin = job.timeRequired;
 						minIdx = counter;
+						System.out.println(" | minIdx = " + minIdx);
 					}
 
+					System.out.println("-----");
 					counter++;
 				}
 
+				System.out.println("returning minIdx = " + minIdx);
 				return minIdx;
 			case Scheduler.HRRN:
 				// System.out.println("-----");
@@ -716,7 +844,7 @@ public class Scheduler {
 						continue;
 					}
 
-					responseRatio = ((Math.abs(job.arrivalTime - currentTime) + job.duration) / (double)job.duration);
+					responseRatio = ((Math.abs(job.arrivalTime - currentTime) + job.timeRequired) / (double)job.timeRequired);
 					// if (!alreadyPicked.contains(job)) {
 					// 	System.out.println(job.name + " " + responseRatio);
 					// }
@@ -736,6 +864,7 @@ public class Scheduler {
 				minIdx = Integer.MAX_VALUE;
 				currMin = Integer.MAX_VALUE;
 
+				System.out.println("----------");
 				counter = 0;
 				for (Job job : jobs) {
 					if (job.arrivalTime > currentTime) {
@@ -743,7 +872,9 @@ public class Scheduler {
 						continue;
 					}
 
-					difference = job.arrivalTime - job.duration;
+					difference = Math.abs(job.arrivalTime - job.timeRequired);
+
+					System.out.println("job: " + job.toString() + "  difference = " + difference + "  currentTime = " + currentTime);
 
 					if (minDifference > difference) {
 						minDifference = difference;
@@ -753,6 +884,7 @@ public class Scheduler {
 					counter++;
 				}
 
+				System.out.println("----------");
 				return minIdx;
 			default:
 				return -1;
