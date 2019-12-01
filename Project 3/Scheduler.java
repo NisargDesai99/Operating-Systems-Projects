@@ -377,7 +377,7 @@ public class Scheduler {
 
 		int minIdx = Integer.MAX_VALUE;
 		int minDifference = Integer.MAX_VALUE;
-		
+
 		int counter = 0;
 		int currDifference = -1;
 
@@ -393,8 +393,8 @@ public class Scheduler {
 			// System.out.println();
 			counter++;
 		}
-		
-		
+
+
 		// System.out.println("returning minIdx = " + minIdx);
 		return minIdx;
 	}
@@ -417,10 +417,10 @@ public class Scheduler {
 
 		while (jobsCounter < jobs.size() || !arrivedAndReadyJobs.isEmpty()) {
 			// nextJobIdx = pickJob(jobs, null, currentTime, Scheduler.SRT);
-			
+
 			// System.out.println("----------");
 			nextJobIdx = checkForArrivals(jobs, currentTime, lastIdx);
-			
+
 			if (nextJobIdx != -1) {
 				// System.out.print("nextJobIdx = " + nextJobIdx + " | currentTime = " + currentTime);
 				nextJob = jobs.get(nextJobIdx);
@@ -433,7 +433,7 @@ public class Scheduler {
 				jobsToIdxMap.put(nextJob, jobsCounter);
 				jobsCounter++;
 			}
-			
+
 			// print(arrivedAndReadyJobs, 0, arrivedAndReadyJobs.size());
 			Job currentJob = arrivedAndReadyJobs.remove(pickJobForSRT(arrivedAndReadyJobs));
 			currentJob.executionTime++;
@@ -458,7 +458,7 @@ public class Scheduler {
 			if (currentJob.timeRequired - currentJob.executionTime > 0) {
 				arrivedAndReadyJobs.add(currentJob);
 			}
-			
+
 			// System.out.println("jobsCounter = " + jobsCounter);
 			// System.out.println("----------");
 			currentTime++;
@@ -468,7 +468,7 @@ public class Scheduler {
 		for (int i = 0; i < builders.length; i++) {
 			bldr.append(builders[i].toString()).append("\n");
 		}
-		
+
 		System.out.println(bldr.toString());
 
 		// while (jobsCounter < jobs.size() || !readyQueue.isEmpty()) {
@@ -813,27 +813,27 @@ public class Scheduler {
 
 				for (Job job : jobs) {
 
-					System.out.println("-----");
+					// System.out.println("-----");
 
-					System.out.println(job.toString());
+					// System.out.println(job.toString());
 
 					if (job.arrivalTime > currentTime) {
-						System.out.println("returning minIdx = " + minIdx + " from if statement");
+						// System.out.println("returning minIdx = " + minIdx + " from if statement");
 						return counter - 1;
 					}
 
 					if (currMin > job.timeRequired && !alreadyPicked.contains(job)) {
-						System.out.print("in currMin > job.timeRequired if statement");
+						// System.out.print("in currMin > job.timeRequired if statement");
 						currMin = job.timeRequired;
 						minIdx = counter;
-						System.out.println(" | minIdx = " + minIdx);
+						// System.out.println(" | minIdx = " + minIdx);
 					}
 
-					System.out.println("-----");
+					// System.out.println("-----");
 					counter++;
 				}
 
-				System.out.println("returning minIdx = " + minIdx);
+				// System.out.println("returning minIdx = " + minIdx);
 				return minIdx;
 			case Scheduler.HRRN:
 				// System.out.println("-----");
